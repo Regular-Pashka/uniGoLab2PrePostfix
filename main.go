@@ -23,6 +23,7 @@ func main() {
             fmt.Println("Введенное выражение:", expression)
         case 2:
             result := calculateInfix(expression)
+            fmt.Println("Выражение в инфиксной форме:", expression)
             fmt.Println("Результат в инфиксной форме:", result)
         case 3:
             postfix := convertToPostfix(expression)
@@ -53,8 +54,8 @@ func printMenu() {
     fmt.Println("5. Выход")
 }
 
-func readChoice() int {
-    var choice int
+func readChoice() float64 {
+    var choice float64
     fmt.Print("Ваш выбор: ")
     fmt.Scanln(&choice)
     return choice
@@ -67,54 +68,86 @@ func readExpression() string {
     return strings.TrimSpace(expression)
 }
 
-// Функция для вычисления инфиксного выражения
-func calculateInfix(expression string) int {
-    values := make([]int, 0) // Стек для операндов
-    operators := make([]string, 0) // Стек для операторов
-    tokens := strings.Fields(expression)
 
-    for _, token := range tokens {
-        if isOperand(token) {
-            operand, _ := strconv.Atoi(token)
-            values = append(values, operand)
-        } else if token == "(" {
-            operators = append(operators, token)
-        } else if token == ")" {
-            for len(operators) > 0 && operators[len(operators)-1] != "(" {
-                values = applyOperator(values, operators)
+
+func calc(operator string, operandStack *[]int) int {
+    right := (*operandStack)[len(*operandStack)-1]
+    *operandStack = (*operandStack)[:len(*operandStack)-1]
+    left := (*operandStack)[len(*operandStack)-1]
+    *operandStack = (*operandStack)[:len(*operandStack)-1]
+
+    switch operator {
+    case "+":
+        return left + right
+    case "-":
+        return left - right
+    case "*":
+        return left * right
+    case "/":
+        return left / right
+    }
+    return 0
+}
+
+func calculateInfix(exp string) int {
+    operandStack := []int{}
+    operatorStack := []string{}
+    tokens := strings.Split(exp, "")
+
+    for i := 0; i < len(tokens); i++ {
+        if tokens[i] == " " {
+            continue
+        }
+        if isDigit(tokens[i]) {
+            num := 0
+            for i < len(tokens) && isDigit(tokens[i]) {
+                digit, _ := strconv.Atoi(tokens[i])
+                num = num*10 + digit
+                i++
             }
-            if len(operators) > 0 {
-                operators = operators[:len(operators)-1] // Удаляем '('
+            i-- // Вернуться к последнему числу
+            operandStack = append(operandStack, num)
+        } else if tokens[i] == "(" {
+            operatorStack = append(operatorStack, tokens[i])
+        } else if tokens[i] == ")" {
+            for operatorStack[len(operatorStack)-1] != "(" {
+                ans := calc(operatorStack[len(operatorStack)-1], &operandStack)
+                operatorStack = operatorStack[:len(operatorStack)-1]
+                operandStack = append(operandStack, ans)
             }
-        } else { // Оператор
-            for len(operators) > 0 && precedence(operators[len(operators)-1]) >= precedence(token) {
-                values = applyOperator(values, operators)
+            operatorStack = operatorStack[:len(operatorStack)-1] // Удаляем '('
+        } else {
+            operator := tokens[i]
+            for len(operatorStack) > 0 && precedence(operator) <= precedence(operatorStack[len(operatorStack)-1]) {
+                ans := calc(operatorStack[len(operatorStack)-1], &operandStack)
+                operatorStack = operatorStack[:len(operatorStack)-1]
+                operandStack = append(operandStack, ans)
             }
-            operators = append(operators, token)
+            operatorStack = append(operatorStack, operator)
         }
     }
 
-    // Применяем оставшиеся операторы
-    for len(operators) > 0 {
-        values = applyOperator(values, operators)
+    for len(operatorStack) > 0 {
+        ans := calc(operatorStack[len(operatorStack)-1], &operandStack)
+        operatorStack = operatorStack[:len(operatorStack)-1]
+        operandStack = append(operandStack, ans)
     }
+    return operandStack[len(operandStack)-1]
+}
 
-    if len(values) == 0 {
-        fmt.Println("Ошибка: пустой стек после вычисления инфиксного выражения")
-        return 0
-    }
-
-    return values[0]
+func isDigit(s string) bool {
+    _, err := strconv.Atoi(s)
+    return err == nil
 }
 
 // Проверка на операнд
 func isOperand(token string) bool {
-    _, err := strconv.Atoi(token)
+    _, err := strconv.ParseFloat(token, 64)
     return err == nil
 }
 
 // Определение приоритета операции
-func precedence(op string) int {
+func precedence(op string) float64 {
     switch op {
     case "+", "-":
         return 1
@@ -125,18 +158,18 @@ func precedence(op string) int {
 }
 
 // Применение оператора
-func applyOperator(values []int, operators []string) []int {
+func applyOperator(values []float64, operators []string) []float64 {
     if len(values) < 2 || len(operators) == 0 {
         fmt.Println("Ошибка: недостаточно операндов для операции")
         return values
     }
 
-    operand2 := values[len(values)-1]
-    values = values[:len(values)-1]
-    operand1 := values[len(values)-1]
-    values = values[:len(values)-1]
-    operator := operators[len(operators)-1]
-    operators = operators[:len(operators)-1]
+    operand2 := values[len(values) - 1]
+    values = values[:len(values) - 1]
+    operand1 := values[len(values) - 1]
+    values = values[:len(values) - 1]
+    operator := operators[len(operators) - 1]
+    operators = operators[:len(operators) - 1]
 
     result := performOperation(operator, operand1, operand2)
     values = append(values, result)
@@ -144,7 +177,7 @@ func applyOperator(values []int, operators []string) []int {
 }
 
 // Выполнение операции
-func performOperation(operator string, operand1, operand2 int) int {
+func performOperation(operator string, operand1, operand2 float64) float64 {
     switch operator {
     case "+":
         return operand1 + operand2
@@ -203,13 +236,13 @@ func convertToPostfix(expression string) string {
 }
 
 // Вычисление постфиксного выражения
-func calculatePostfix(expression string) int {
-    stack := make([]int, 0)
+func calculatePostfix(expression string) float64 {
+    stack := make([]float64, 0)
     tokens := strings.Fields(expression)
 
     for _, token := range tokens {
         if isOperand(token) {
-            operand, _ := strconv.Atoi(token)
+            operand, _ := strconv.ParseFloat(token, 64)
             stack = append(stack, operand)
         } else {
             if len(stack) < 2 {
@@ -280,15 +313,15 @@ func convertToPrefix(expression string) string {
 }
 
 // Вычисление префиксного выражения
-func calculatePrefix(expression string) int {
+func calculatePrefix(expression string) float64 {
     tokens := strings.Fields(expression)
-    stack := make([]int, 0)
+    stack := make([]float64, 0)
 
     // Обратный порядок для вычисления
     for i := len(tokens) - 1; i >= 0; i-- {
         token := tokens[i]
         if isOperand(token) {
-            operand, _ := strconv.Atoi(token)
+            operand, _ := strconv.ParseFloat(token, 64)
             stack = append(stack, operand)
         } else {
             if len(stack) < 2 {
@@ -312,4 +345,3 @@ func calculatePrefix(expression string) int {
 
     return stack[0]
 }
-
